@@ -72,6 +72,9 @@ export function buildDashboard(args: {
   const { items, history, currency, priceUpdatedAt, unitsLoaded, unitsTotal } = args;
   const now = args.now ?? Date.now();
   const { inventoryValue, storageValue, totalValue } = summarizeValue(items);
+  const unpricedCount = items.filter(
+    (item) => item.marketHashName !== null && item.price === null,
+  ).length;
 
   const category = new Map<string, { value: number; count: number; color?: string }>();
   const rarity = new Map<string, { value: number; count: number; color?: string }>();
@@ -147,6 +150,7 @@ export function buildDashboard(args: {
 
   return {
     currency,
+    ...(unpricedCount ? { unpricedCount } : {}),
     priceUpdatedAt,
     totals: {
       value: totalValue,
@@ -159,12 +163,20 @@ export function buildDashboard(args: {
     change,
     history: [
       ...history.map((s) => ({
+        ...(s.unpricedCount ? { unpricedCount: s.unpricedCount } : {}),
+        ...(s.restorable ? { restorable: true } : {}),
         takenAt: s.takenAt,
         totalValue: s.totalValue,
         inventoryValue: s.inventoryValue,
         storageValue: s.storageValue,
       })),
-      { takenAt: now, totalValue, inventoryValue, storageValue },
+      {
+        takenAt: now,
+        totalValue,
+        inventoryValue,
+        storageValue,
+        ...(unpricedCount ? { unpricedCount } : {}),
+      },
     ],
     byCategory: toSlices(category),
     byRarity: toSlices(rarity),
@@ -200,6 +212,7 @@ export function mergeHistories(
     let inventory = 0;
     let storage = 0;
     let count = 0;
+    let unpricedCount = 0;
     series.forEach((snapshots, index) => {
       let cursor = cursors[index] ?? -1;
       while (snapshots[cursor + 1] && bucketOf(snapshots[cursor + 1]?.takenAt ?? 0) <= bucket) {
@@ -215,6 +228,7 @@ export function mergeHistories(
       inventory += latest.inventoryValue;
       storage += latest.storageValue;
       count += latest.itemCount;
+      unpricedCount += latest.unpricedCount ?? 0;
     });
     merged.push({
       takenAt,
@@ -222,6 +236,7 @@ export function mergeHistories(
       inventoryValue: inventory,
       storageValue: storage,
       itemCount: count,
+      ...(unpricedCount ? { unpricedCount } : {}),
     });
   }
   return merged;

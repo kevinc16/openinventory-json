@@ -5,7 +5,7 @@ import { VALUE_CHART } from "./value-chart.config";
 import type { ValueChartProps } from "./value-chart.types";
 
 /** Dependency-free SVG area chart: smooth line, dotted grid, hover dot with a price pill. */
-export function ValueChart({ points, currency, tone }: ValueChartProps) {
+export function ValueChart({ points, currency, tone, onSelect }: ValueChartProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [hover, setHover] = useState<number>();
@@ -74,9 +74,22 @@ export function ValueChart({ points, currency, tone }: ValueChartProps) {
           height={height}
           onPointerMove={onMove}
           onPointerLeave={() => setHover(undefined)}
+          onClick={(event) => {
+            if (!geometry || !onSelect) return;
+            const rect = event.currentTarget.getBoundingClientRect();
+            const time =
+              geometry.t0 +
+              ((event.clientX - rect.left - p.left) / geometry.plotW) * (geometry.t1 - geometry.t0);
+            const nearest = points.reduce(
+              (best, point) =>
+                Math.abs(point.takenAt - time) < Math.abs(best.takenAt - time) ? point : best,
+              points[0]!,
+            );
+            if (nearest.restorable) onSelect(nearest.takenAt);
+          }}
           role="img"
           aria-label="Value over time"
-          className="touch-pan-y"
+          className="touch-pan-y select-none"
         >
           <defs>
             <linearGradient id={fillId} x1="0" x2="0" y1="0" y2="1">
@@ -187,6 +200,11 @@ export function ValueChart({ points, currency, tone }: ValueChartProps) {
         >
           <p className="text-sm font-semibold">{formatMoney(active.value, currency)}</p>
           <p className="text-[11px] opacity-70">{formatDateTime(active.takenAt)}</p>
+          {active.unpricedCount ? (
+            <p className="text-[11px]">
+              {active.unpricedCount} marketable items unpriced; known value only
+            </p>
+          ) : null}
         </div>
       )}
     </div>

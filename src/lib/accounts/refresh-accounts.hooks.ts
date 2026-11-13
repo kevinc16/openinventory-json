@@ -6,11 +6,13 @@ import { AUTH_STATUS, STORAGE_API } from "~/lib/storage/storage.config";
 import { accountName } from "./account-names";
 import { useAccountScope } from "./account-scope.hooks";
 import type { RefreshAccounts } from "./refresh-accounts.types";
+import { useSnapshotView } from "~/lib/items/snapshot-view.hooks";
 
 /** Re-reads prices and storage units for the account(s) in view, reporting each failure by account. */
 export function useRefreshAccounts(): RefreshAccounts {
   const { scoped, isAll } = useAccountScope();
   const priceQuery = usePriceQuery();
+  const { takenAt } = useSnapshotView();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const ready = scoped.filter((account) => account.snapshot.auth.status === AUTH_STATUS.ready);
@@ -18,6 +20,7 @@ export function useRefreshAccounts(): RefreshAccounts {
   const scopeLabel = isAll || !only ? COPY.refresh.allAccounts : accountName(only);
 
   async function refresh() {
+    if (takenAt !== undefined) return;
     setBusy(true);
     setError(undefined);
     const results = await Promise.allSettled(
@@ -39,7 +42,7 @@ export function useRefreshAccounts(): RefreshAccounts {
     refresh,
     busy,
     error,
-    canRefresh: ready.length > 0,
+    canRefresh: ready.length > 0 && takenAt === undefined,
     scopeLabel,
     skipped: scoped.length - ready.length,
   };

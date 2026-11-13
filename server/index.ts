@@ -369,7 +369,15 @@ async function recordSnapshot(gateway: StorageGateway, scope: PriceScope): Promi
   const flightKey = `${steamId}:${key.currency}`;
   if (snapshotsInFlight.has(flightKey)) return;
   const last = db.lastSnapshotAt(key);
-  if (last !== undefined && Date.now() - last < SERVER_LIMITS.snapshotIntervalMs) return;
+  const importedAt = gateway.getSnapshot().importedAt;
+  const previousImport =
+    last === undefined ? undefined : db.getSnapshotInventory(key, last)?.importedAt;
+  if (
+    last !== undefined &&
+    Date.now() - last < SERVER_LIMITS.snapshotIntervalMs &&
+    importedAt === previousImport
+  )
+    return;
   snapshotsInFlight.add(flightKey);
   try {
     await writeSnapshot(gateway, key, scope);
@@ -383,22 +391,49 @@ async function writeSnapshot(
   key: { readonly steamId: string; readonly currency: string },
   scope: PriceScope,
 ): Promise<void> {
-  const snapshot = gateway.getSnapshot();
-  if (snapshot.loadingUnits || snapshot.units.some((u) => !u.loaded)) return; // partial storage data would record a false dip
   const book = await loadPrices(scope);
+  const snapshot = gateway.getSnapshot();
+  if (snapshot.loadingUnits || snapshot.units.some((u) => !u.loaded)) return;
   const items = collectItems(gateway, catalog, book, db.loadItemNotes(key.steamId)).map(
     (c) => c.view,
   );
-  if (items.some((item) => item.marketHashName !== null && item.price === null)) return;
+  const unpricedCount = items.filter(
+    (item) => item.marketHashName !== null && item.price === null,
+  ).length;
   if (items.length === 0 && !gateway.getImportedItems) return;
   const { inventoryValue, storageValue, totalValue } = summarizeValue(items);
-  db.addSnapshot(key, {
-    takenAt: Date.now(),
-    totalValue,
-    inventoryValue,
-    storageValue,
-    itemCount: items.length,
-  });
+  db.addSnapshot(
+    key,
+    {
+      takenAt: Math.max(Date.now(), (db.lastSnapshotAt(key) ?? 0) + 1),
+      totalValue,
+      inventoryValue,
+      storageValue,
+      itemCount: items.length,
+      ...(unpricedCount ? { unpricedCount } : {}),
+    },
+    gateway.getImportedItems
+      ? { items, importedAt: snapshot.importedAt ?? 0, priceUpdatedAt: book.fetchedAt }
+      : undefined,
+  );
+}
+
+/** A historical view never changes the current import or fetches today's prices. */
+function readHistorical(url: URL, scope: PriceScope) {
+  const raw = url.searchParams.get("snapshot");
+  if (raw === null) return undefined;
+  if (!/^\d{1,16}$/.test(raw) || !Number.isSafeInteger(Number(raw)))
+    throw new UserFacingError("Invalid snapshot time.", 400);
+  const { steamId } = singleAccount(parseAccountScope(url, false));
+  accounts.get(steamId);
+  const key = { steamId, currency: historyCurrency(scope) };
+  const inventory = db.getSnapshotInventory(key, Number(raw));
+  if (!inventory)
+    throw new UserFacingError(
+      "This point has no saved inventory. Older totals cannot be restored; choose another point or return to latest.",
+      404,
+    );
+  return { ...inventory, key, takenAt: Number(raw) };
 }
 
 /** Open SSE responses; they never go idle, so shutdown ends them explicitly. */
@@ -510,6 +545,13 @@ const server = createServer(async (req, res) => {
       const gateways = account.kind === "all" ? readyGateways() : [readyGateway(account.steamId)];
       const scope = parseScope(url);
       const { currency } = scope;
+      const historical = readHistorical(url, scope);
+      if (historical)
+        return sendJson(res, HTTP.ok, {
+          items: historical.items,
+          currency,
+          priceUpdatedAt: historical.priceUpdatedAt,
+        });
       const book = await loadPrices(scope);
       if (aborted(req, res)) return;
       const items = collectAllItems(gateways, catalog, book, db.loadItemNotes).map((c) => c.view);
@@ -522,12 +564,29 @@ const server = createServer(async (req, res) => {
       const scope = parseScope(url);
       const { currency } = scope;
       rememberScope(scope);
+      const historical = readHistorical(url, scope);
+      if (historical) {
+        const history = db.listSnapshots(historical.key);
+        const dashboard = buildDashboard({
+          items: historical.items,
+          history,
+          currency,
+          priceUpdatedAt: historical.priceUpdatedAt,
+          unitsLoaded: 0,
+          unitsTotal: 0,
+          now: historical.takenAt,
+        });
+        return sendJson(res, HTTP.ok, { ...dashboard, history });
+      }
       const book = await loadPrices(scope);
       if (aborted(req, res)) return;
       const items = collectAllItems(gateways, catalog, book, db.loadItemNotes).map((c) => c.view);
       const units = gateways.flatMap((gateway) => gateway.getSnapshot().units);
-      for (const gateway of gateways)
-        void recordSnapshot(gateway, scope).catch((e: unknown) => console.warn("[snapshot]", e));
+      await Promise.all(
+        gateways.map((gateway) =>
+          recordSnapshot(gateway, scope).catch((e: unknown) => console.warn("[snapshot]", e)),
+        ),
+      );
       const series = gateways.map((gateway) =>
         db.listSnapshots({ steamId: gateway.getSteamId(), currency: historyCurrency(scope) }),
       );
@@ -787,6 +846,8 @@ function rememberScope(scope: PriceScope): void {
 // (re)connect of an account, so each account's timers are only started once.
 const snapshotTimers = new Map<string, SnapshotTimers>();
 accounts.onReady((steamId, gateway) => {
+  for (const scope of trackedScopes())
+    void recordSnapshot(gateway, scope).catch((e: unknown) => console.warn("[snapshot]", e));
   if (snapshotTimers.has(steamId)) return;
   const tick = () => {
     for (const scope of trackedScopes()) {

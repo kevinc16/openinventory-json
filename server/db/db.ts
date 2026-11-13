@@ -6,7 +6,7 @@ import type { GcItem } from "../steam/steam.types.ts";
 import type { HistoryEvent, HistorySyncState } from "../cases/cases.types.ts";
 import { ACCOUNT_LABELS } from "../../src/lib/accounts/accounts.config.ts";
 import type { Account, AccountLabel } from "../../src/lib/accounts/accounts.types.ts";
-import type { Database, SnapshotKey, ValueSnapshot } from "./db.types.ts";
+import type { Database, SnapshotKey, SnapshotInventory, ValueSnapshot } from "./db.types.ts";
 
 const DB_FILE = "openinventory.db";
 const DB_SIDECARS = ["-wal", "-shm"] as const;
@@ -87,6 +87,14 @@ const MIGRATIONS: readonly string[] = [
     updated_at INTEGER NOT NULL,
     PRIMARY KEY (steam_id, item_id)
   )`,
+  `CREATE TABLE snapshot_inventories (
+    steam_id TEXT NOT NULL,
+    currency TEXT NOT NULL,
+    taken_at INTEGER NOT NULL,
+    inventory_json TEXT NOT NULL,
+    PRIMARY KEY (steam_id, currency, taken_at)
+  )`,
+  `ALTER TABLE value_snapshots ADD COLUMN unpriced_count INTEGER NOT NULL DEFAULT 0`,
 ];
 const USER_VERSION_SQL = "PRAGMA user_version";
 
@@ -204,13 +212,25 @@ export function openDatabase(dataDir: string): Database {
   const deleteUnit = db.prepare("DELETE FROM unit_contents WHERE steam_id = ? AND unit_id = ?");
   const deleteUnits = db.prepare("DELETE FROM unit_contents WHERE steam_id = ?");
   const putSnapshot = db.prepare(
-    "INSERT OR REPLACE INTO value_snapshots (steam_id, currency, taken_at, total_value, inventory_value, storage_value, item_count) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    "INSERT OR REPLACE INTO value_snapshots (steam_id, currency, taken_at, total_value, inventory_value, storage_value, item_count, unpriced_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
   );
   const lastSnapshot = db.prepare(
     "SELECT MAX(taken_at) AS taken_at FROM value_snapshots WHERE steam_id = ? AND currency = ?",
   );
   const listSnapshots = db.prepare(
-    "SELECT taken_at, total_value, inventory_value, storage_value, item_count FROM value_snapshots WHERE steam_id = ? AND currency = ? ORDER BY taken_at",
+    "SELECT v.*, EXISTS(SELECT 1 FROM snapshot_inventories i WHERE i.steam_id = v.steam_id AND i.currency = v.currency AND i.taken_at = v.taken_at) AS restorable FROM value_snapshots v WHERE steam_id = ? AND currency = ? ORDER BY taken_at",
+  );
+  const putSnapshotInventory = db.prepare(
+    "INSERT OR REPLACE INTO snapshot_inventories VALUES (?, ?, ?, ?)",
+  );
+  const deleteSnapshotInventory = db.prepare(
+    "DELETE FROM snapshot_inventories WHERE steam_id = ? AND currency = ? AND taken_at = ?",
+  );
+  const getSnapshotInventory = db.prepare(
+    "SELECT inventory_json FROM snapshot_inventories WHERE steam_id = ? AND currency = ? AND taken_at = ?",
+  );
+  const pruneSnapshotInventories = db.prepare(
+    "DELETE FROM snapshot_inventories WHERE taken_at < ?",
   );
   const insertEvent = db.prepare(
     "INSERT OR IGNORE INTO history_events (steam_id, event_id, occurred_at, event_json) VALUES (?, ?, ?, ?)",
@@ -288,17 +308,32 @@ export function openDatabase(dataDir: string): Database {
     clearUnits(steamId) {
       deleteUnits.run(steamId);
     },
-    addSnapshot({ steamId, currency }: SnapshotKey, s: ValueSnapshot) {
-      putSnapshot.run(
-        steamId,
-        currency,
-        s.takenAt,
-        s.totalValue,
-        s.inventoryValue,
-        s.storageValue,
-        s.itemCount,
-      );
-      pruneSnapshots.run(Date.now() - SERVER_LIMITS.snapshotRetentionDays * DAY_MS);
+    addSnapshot(
+      { steamId, currency }: SnapshotKey,
+      s: ValueSnapshot,
+      inventory?: SnapshotInventory,
+    ) {
+      transaction(() => {
+        putSnapshot.run(
+          steamId,
+          currency,
+          s.takenAt,
+          s.totalValue,
+          s.inventoryValue,
+          s.storageValue,
+          s.itemCount,
+          s.unpricedCount ?? 0,
+        );
+        if (inventory)
+          putSnapshotInventory.run(steamId, currency, s.takenAt, JSON.stringify(inventory));
+        else deleteSnapshotInventory.run(steamId, currency, s.takenAt);
+        pruneSnapshots.run(Date.now() - SERVER_LIMITS.snapshotRetentionDays * DAY_MS);
+        pruneSnapshotInventories.run(Date.now() - SERVER_LIMITS.snapshotRetentionDays * DAY_MS);
+      });
+    },
+    getSnapshotInventory({ steamId, currency }, takenAt) {
+      const row = getSnapshotInventory.get(steamId, currency, takenAt) as Row | undefined;
+      return row ? (JSON.parse(String(row.inventory_json)) as SnapshotInventory) : undefined;
     },
     lastSnapshotAt({ steamId, currency }) {
       const row = lastSnapshot.get(steamId, currency) as Row | undefined;
@@ -311,6 +346,8 @@ export function openDatabase(dataDir: string): Database {
         inventoryValue: Number(row.inventory_value),
         storageValue: Number(row.storage_value),
         itemCount: Number(row.item_count),
+        ...(row.unpriced_count ? { unpricedCount: Number(row.unpriced_count) } : {}),
+        ...(row.restorable ? { restorable: true } : {}),
       }));
     },
     saveHistoryEvents(steamId, events) {

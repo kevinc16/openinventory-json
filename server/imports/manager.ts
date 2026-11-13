@@ -157,8 +157,17 @@ export function createImportManager(db: Database) {
         throw new UserFacingError("Choose an existing portfolio to replace.", 400);
       const id = typeof body.portfolioId === "string" ? body.portfolioId : generated;
       const items = parseInventoryPages(body.pages, id); // Validate completely before replacing anything.
-      const portfolio: Portfolio = { id, name, importedAt: Date.now(), items };
+      const portfolio: Portfolio = {
+        id,
+        name,
+        importedAt: Math.max(Date.now(), (portfolios.get(id)?.importedAt ?? 0) + 1),
+        items,
+      };
       const added = !portfolios.has(id);
+      const previous = portfolios.get(id);
+      if (previous)
+        db.setCache(`json-import:version:${id}:${previous.importedAt}`, JSON.stringify(previous));
+      db.setCache(`json-import:version:${id}:${portfolio.importedAt}`, JSON.stringify(portfolio));
       db.setCache(PREFIX + id, JSON.stringify(portfolio));
       db.addAccount(id);
       portfolios.set(id, portfolio);

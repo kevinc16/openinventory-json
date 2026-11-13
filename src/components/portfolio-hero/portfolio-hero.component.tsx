@@ -24,6 +24,11 @@ export function PortfolioHero({ dashboard, currency }: PortfolioHeroProps) {
       <div className="flex flex-col gap-6 p-5 @2xl:flex-row @2xl:items-end @2xl:justify-between md:p-6">
         <div>
           <p className="text-xs text-muted-foreground">{copy.totalValue}</p>
+          {dashboard.unpricedCount ? (
+            <p className="text-xs text-muted-foreground">
+              Known prices only: {dashboard.unpricedCount} marketable items have no price.
+            </p>
+          ) : null}
           <p className="tabular mt-1 text-[40px] font-semibold leading-none tracking-tight md:text-5xl">
             {formatMoney(totals.value, currency)}
           </p>

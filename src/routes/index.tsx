@@ -13,7 +13,8 @@ import { COPY } from "~/lib/copy/copy.config";
 import { PAGE_LAYOUT } from "~/lib/layout/page-layout.config";
 import { DASHBOARD_PAGE } from "~/lib/items/dashboard-page.config";
 import type { Dashboard } from "~/lib/items/dashboard.types";
-import { useScopedPath, useSingleAccountLabel } from "~/lib/accounts/account-scope.hooks";
+import { useSingleAccountLabel } from "~/lib/accounts/account-scope.hooks";
+import { useInventoryPath } from "~/lib/items/snapshot-view.hooks";
 import { useRefreshAccounts } from "~/lib/accounts/refresh-accounts.hooks";
 import { useRestoreFocusOnRecovery } from "~/lib/storage/recovered-focus.hooks";
 import { useRemoteData, useStorageSnapshot } from "~/lib/storage/storage.client";
@@ -28,7 +29,7 @@ function DashboardPage() {
   const marketplace = useSettings((s) => s.marketplace);
   const priceQuery = usePriceQuery();
   const data = useRemoteData<Dashboard>(
-    useScopedPath(`${STORAGE_API.dashboard}?${priceQuery}`),
+    useInventoryPath(`${STORAGE_API.dashboard}?${priceQuery}`),
     snapshot.revision,
   );
   const accountLabel = useSingleAccountLabel();

@@ -1,8 +1,17 @@
 import type { Account, AccountLabel } from "../../src/lib/accounts/accounts.types.ts";
 import type { HistoryEvent, HistorySyncState } from "../cases/cases.types.ts";
 import type { GcItem } from "../steam/steam.types.ts";
+import type { ItemView } from "../../src/lib/items/item.types.ts";
+
+export type SnapshotInventory = {
+  readonly importedAt: number;
+  readonly priceUpdatedAt: number;
+  readonly items: readonly ItemView[];
+};
 
 export type ValueSnapshot = {
+  readonly unpricedCount?: number;
+  readonly restorable?: boolean;
   readonly takenAt: number;
   readonly totalValue: number;
   readonly inventoryValue: number;
@@ -28,7 +37,15 @@ export type Database = {
   ) => ReadonlyMap<string, { readonly itemCount: number; readonly items: readonly GcItem[] }>;
   readonly pruneUnits: (steamId: string, keepIds: readonly string[]) => void;
   readonly clearUnits: (steamId: string) => void;
-  readonly addSnapshot: (key: SnapshotKey, snapshot: ValueSnapshot) => void;
+  readonly addSnapshot: (
+    key: SnapshotKey,
+    snapshot: ValueSnapshot,
+    inventory?: SnapshotInventory,
+  ) => void;
+  readonly getSnapshotInventory: (
+    key: SnapshotKey,
+    takenAt: number,
+  ) => SnapshotInventory | undefined;
   readonly lastSnapshotAt: (key: SnapshotKey) => number | undefined;
   readonly listSnapshots: (key: SnapshotKey) => readonly ValueSnapshot[];
   /** Stores events not seen before and returns how many were new. */

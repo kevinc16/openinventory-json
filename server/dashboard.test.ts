@@ -7,6 +7,17 @@ import { buildDashboard, mergeHistories, summarizeValue } from "./dashboard.ts";
 import type { ValueSnapshot } from "./db/db.types.ts";
 
 const NOW = 1_800_000_000_000;
+test("incomplete valuations keep all holdings and label missing prices in history", () => {
+  const dashboard = build([
+    item("priced"),
+    item("missing", { price: null }),
+    item("coin", { price: null, marketHashName: null }),
+  ]);
+  assert.equal(dashboard.totals.itemCount, 3);
+  assert.equal(dashboard.totals.value, 10);
+  assert.equal(dashboard.unpricedCount, 1);
+  assert.equal(dashboard.history.at(-1)?.unpricedCount, 1);
+});
 const STORAGE_ID = "unit-1";
 
 function item(id: string, overrides: Partial<ItemView> = {}): ItemView {

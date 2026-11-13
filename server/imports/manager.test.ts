@@ -37,6 +37,11 @@ test("imports persist, replacement stays separate, rejected pages preserve data,
   const restored = createImportManager(db);
   assert.equal(restored.get(first.id).getImportedItems?.().length, 3);
   manager.importInventory({ label: "Main", pages: [page("5")] });
+  const archived = JSON.parse(
+    db.getCacheStale(`json-import:version:${first.id}:${first.importedAt}`)!,
+  );
+  assert.equal(archived.items.length, 3);
+  assert.ok(!JSON.stringify(archived).includes("MUST_NOT_PERSIST"));
   assert.equal(manager.get(first.id).getImportedItems?.().length, 5);
   assert.equal(manager.get(second.id).getImportedItems?.().length, 1);
   assert.throws(() =>

@@ -1,0 +1,11 @@
+# Historical inventory views
+
+User request: make the imported dashboard's snapshots behave like the previous local dashboard.
+
+Implemented: preserve normalized import versions, atomically save exact priced item rows with valuation points, migrate legacy totals without fabricating rows, restore dashboard and Items views from a chosen point, remember selection per portfolio/currency/marketplace, and offer Return to latest inventory without changing live holdings. Replacement imports bypass the hourly value throttle when the import version differs. Historical requests use stored prices and avoid network pricing. Incomplete valuations now retain all item rows, mark missing-price counts, and explicitly show known value only; the existing user portfolio has four marketable items without feed prices. This permits restoring holdings even with incomplete coverage.
+
+Limits: old totals-only points and synthetic live previews cannot restore items; combined portfolio history is totals only. Valuation rows and payloads retain the existing 730-day pruning policy. Normalized import versions remain in the local cache independently.
+
+Verification: DB tests cover persistence, exact prices/quantities, account/currency isolation, migration, retention and summary/payload consistency. Import tests cover preserved normalized versions and discarded credential fields. Selection tests cover portfolio/pricing isolation. API smoke tests import two synthetic versions within the hour and restore the earlier dashboard/items without overwriting current holdings; reject mismatched scopes and malformed timestamps. Browser testing covers the historical selector, graph click, Items page, portfolio round-trip, Return to latest, and stable graph dimensions after double-click (944 by 280 pixels).
+
+Final verification: 307 tests pass, TypeScript build and production build pass. A real QA-process restart preserved the earlier inventory and valuation. The live dashboard was restarted with its existing data; its 686-item portfolio successfully restored all 686 rows from a new saved point, with four marketable items explicitly marked unpriced. Browser verification confirmed the new point selector and coverage label. The existing upstream bundle-size warning remains.

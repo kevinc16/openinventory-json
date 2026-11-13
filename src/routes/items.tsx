@@ -14,11 +14,7 @@ import { FilteredEmpty } from "~/components/filtered-empty/filtered-empty.compon
 import { PageHeader } from "~/components/page-header/page-header.component";
 import { Select } from "~/components/select/select.component";
 import { accountName, accountText } from "~/lib/accounts/account-names";
-import {
-  useAccountScope,
-  useScopedPath,
-  useSingleAccountLabel,
-} from "~/lib/accounts/account-scope.hooks";
+import { useAccountScope, useSingleAccountLabel } from "~/lib/accounts/account-scope.hooks";
 import { ACCOUNT_LABELS } from "~/lib/accounts/accounts.config";
 import { TiersHelp } from "~/components/tiers-help/tiers-help.component";
 import { COPY } from "~/lib/copy/copy.config";
@@ -33,6 +29,7 @@ import { STORAGE_API } from "~/lib/storage/storage.config";
 import { useItemViewMode } from "~/lib/items/view-mode.store";
 import { usePriceQuery } from "~/lib/settings/settings.store";
 import { formatInteger } from "~/utils/format";
+import { useInventoryPath } from "~/lib/items/snapshot-view.hooks";
 
 export const Route = createFileRoute("/items")({
   // `?q=` pre-fills the search, e.g. when a dashboard row links here.
@@ -58,7 +55,7 @@ function ItemsPage() {
   const { accounts, scoped, isAll } = useAccountScope();
   const accountLabel = useSingleAccountLabel();
   const data = useRemoteData<InventoryResponse>(
-    useScopedPath(`${STORAGE_API.items}?${priceQuery}`),
+    useInventoryPath(`${STORAGE_API.items}?${priceQuery}`),
     snapshot.revision,
   );
   useRestoreFocusOnRecovery(data.status);

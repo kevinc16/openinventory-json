@@ -19,6 +19,7 @@ import type { HistoryEvent } from "../cases/cases.types.ts";
 import type { GcItem } from "../steam/steam.types.ts";
 import { openDatabase } from "./db.ts";
 import type { Database, ValueSnapshot } from "./db.types.ts";
+import { parseInventoryPages } from "../imports/inventory.ts";
 
 const STEAM_ID = "76561190000000001";
 const OTHER_STEAM_ID = "76561190000000002";
@@ -31,6 +32,83 @@ const FILLER_BYTES = 1024;
 const DAMAGE_BYTES = 4096;
 
 const cleanups: (() => void)[] = [];
+test("snapshot inventories retain exact items and prices across replacement and restart", () => {
+  const { db, dir } = freshDb();
+  const time = Date.now();
+  const summary = {
+    takenAt: time,
+    totalValue: 10,
+    inventoryValue: 10,
+    storageValue: 0,
+    itemCount: 1,
+  };
+  const items = parseInventoryPages(
+    [
+      {
+        success: 1,
+        total_inventory_count: 1,
+        more_items: 0,
+        assets: [
+          { appid: 730, contextid: "2", assetid: "1", classid: "10", instanceid: "0", amount: "1" },
+        ],
+        descriptions: [{ classid: "10", instanceid: "0", name: "Example", marketable: 0 }],
+      },
+    ],
+    STEAM_ID,
+  ).map((item) => ({ ...item, price: 10 }));
+  const inventory = { importedAt: time - 1, priceUpdatedAt: time, items };
+  db.addSnapshot(KEY, summary, inventory);
+  db.addSnapshot(
+    KEY,
+    { ...summary, takenAt: time + 1, totalValue: 20 },
+    { ...inventory, items: items.map((item) => ({ ...item, price: 20 })) },
+  );
+  assert.deepEqual(db.getSnapshotInventory(KEY, time), inventory);
+  assert.equal(db.getSnapshotInventory({ ...KEY, currency: "CAD" }, time), undefined);
+  assert.equal(db.getSnapshotInventory({ ...KEY, steamId: OTHER_STEAM_ID }, time), undefined);
+  assert.equal(db.listSnapshots(KEY)[0]?.restorable, true);
+  const reopened = openDatabase(dir);
+  try {
+    assert.deepEqual(reopened.getSnapshotInventory(KEY, time), inventory);
+  } finally {
+    reopened.close();
+  }
+  db.addSnapshot(KEY, { ...summary, takenAt: time + 2 });
+  assert.equal(db.getSnapshotInventory(KEY, time + 2), undefined);
+  db.addSnapshot(
+    KEY,
+    { ...summary, takenAt: time + 3, unpricedCount: 1 },
+    { ...inventory, items: items.map((item) => ({ ...item, price: null })) },
+  );
+  assert.equal(db.listSnapshots(KEY).find((point) => point.takenAt === time + 3)?.unpricedCount, 1);
+  assert.equal(db.getSnapshotInventory(KEY, time + 3)?.items[0]?.price, null);
+  const expired = time - 731 * 86_400_000;
+  db.addSnapshot(KEY, { ...summary, takenAt: expired }, inventory);
+  assert.equal(db.getSnapshotInventory(KEY, expired), undefined);
+  db.addSnapshot(KEY, { ...summary, totalValue: 99 });
+  assert.equal(db.getSnapshotInventory(KEY, time), undefined);
+});
+
+test("snapshot migration preserves legacy totals without inventing historical inventories", () => {
+  const dir = tempDir();
+  const original = openDatabase(dir);
+  const time = Date.now();
+  original.addSnapshot(KEY, snapshot(time, 12));
+  original.close();
+  const legacy = new DatabaseSync(join(dir, DB_FILE));
+  legacy.exec(
+    "DROP TABLE snapshot_inventories; ALTER TABLE value_snapshots DROP COLUMN unpriced_count; PRAGMA user_version = 2",
+  );
+  legacy.close();
+  const migrated = openDatabase(dir);
+  try {
+    assert.equal(migrated.listSnapshots(KEY)[0]?.totalValue, 12);
+    assert.equal(migrated.listSnapshots(KEY)[0]?.restorable, undefined);
+    assert.equal(migrated.getSnapshotInventory(KEY, time), undefined);
+  } finally {
+    migrated.close();
+  }
+});
 afterEach(() => {
   while (cleanups.length > 0) cleanups.pop()?.();
 });

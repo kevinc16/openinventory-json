@@ -17,6 +17,8 @@ export type Holding = {
 export type LocationSlice = Slice & { readonly id: string };
 
 export type HistoryPoint = {
+  readonly unpricedCount?: number;
+  readonly restorable?: boolean;
   readonly takenAt: number;
   readonly totalValue: number;
   readonly inventoryValue: number;
@@ -46,6 +48,7 @@ export type DashboardInsights = {
 };
 
 export type Dashboard = {
+  readonly unpricedCount?: number;
   readonly currency: string;
   readonly priceUpdatedAt: number | null;
   readonly totals: {

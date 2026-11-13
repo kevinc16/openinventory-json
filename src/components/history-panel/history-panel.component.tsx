@@ -8,9 +8,12 @@ import { ValueChart } from "~/components/value-chart/value-chart.component";
 import { HISTORY_PANEL } from "./history-panel.config";
 import { filterRange } from "./history-panel.utils";
 import type { HistoryPanelProps, RangeKey, SeriesKey } from "./history-panel.types";
+import { useSnapshotView } from "~/lib/items/snapshot-view.hooks";
+import { formatDateTime } from "~/utils/format";
 
 /** The history chart with its two filters: which series (total / inventory / storage) and how far back. */
 export function HistoryPanel({ history, currency }: HistoryPanelProps) {
+  const { takenAt, select, accountId } = useSnapshotView();
   const [range, setRange] = useState<RangeKey>(HISTORY_PANEL.defaultRange);
   const [series, setSeries] = useState<SeriesKey>(HISTORY_PANEL.defaultSeries);
 
@@ -21,6 +24,8 @@ export function HistoryPanel({ history, currency }: HistoryPanelProps) {
       filterRange(history, range, now).map((pt) => ({
         takenAt: pt.takenAt,
         value: pt[series],
+        restorable: pt.restorable,
+        unpricedCount: pt.unpricedCount,
       })),
     [history, range, series, now],
   );
@@ -44,6 +49,39 @@ export function HistoryPanel({ history, currency }: HistoryPanelProps) {
 
   return (
     <div className="px-4 pb-3 pt-4">
+      <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
+        {accountId ? (
+          <>
+            <label htmlFor="inventory-snapshot">Inventory value over time</label>
+            <select
+              id="inventory-snapshot"
+              className="rounded-md border bg-background px-2 py-1"
+              value={takenAt ?? "latest"}
+              onChange={(event) =>
+                select(event.target.value === "latest" ? undefined : Number(event.target.value))
+              }
+            >
+              <option value="latest">Latest inventory</option>
+              {history
+                .filter((point) => point.restorable)
+                .map((point, index) => (
+                  <option key={point.takenAt} value={point.takenAt}>
+                    {formatDateTime(point.takenAt)} · snapshot {index + 1}
+                    {point.unpricedCount ? ` · ${point.unpricedCount} unpriced` : ""}
+                  </option>
+                ))}
+            </select>
+            <span className="text-muted-foreground">
+              Click a saved point to view its inventory and recorded prices. Older totals and the
+              live preview have no saved items.
+            </span>
+          </>
+        ) : (
+          <span className="text-muted-foreground">
+            Choose one portfolio to restore a saved inventory. Combined history shows totals only.
+          </span>
+        )}
+      </div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1.5">
           {HISTORY_PANEL.series.map((s) => (
@@ -74,7 +112,12 @@ export function HistoryPanel({ history, currency }: HistoryPanelProps) {
         </div>
       </div>
       {points.length >= HISTORY_PANEL.minPoints ? (
-        <ValueChart points={points} currency={currency} tone={last >= first ? "up" : "down"} />
+        <ValueChart
+          points={points}
+          currency={currency}
+          tone={last >= first ? "up" : "down"}
+          onSelect={accountId ? select : undefined}
+        />
       ) : (
         <p className="py-16 text-center text-muted-foreground">{HISTORY_PANEL.copy.empty}</p>
       )}

@@ -21,6 +21,7 @@ import { SyncError } from "~/components/sync-error/sync-error.component";
 import { TransferStatus } from "~/components/transfer-status/transfer-status.component";
 import { COPY } from "~/lib/copy/copy.config";
 import { APP_SHELL, NAV_ITEMS } from "./app-shell.config";
+import { SnapshotBanner } from "~/components/history-panel/snapshot-banner.component";
 
 const ICONS: Record<
   (typeof NAV_ITEMS)[number]["icon"],
@@ -92,6 +93,7 @@ export function AppShell() {
           <main id={APP_SHELL.mainId} tabIndex={-1} className={APP_SHELL.mainClass}>
             <LoginOutcome />
             <StaleBanner />
+            <SnapshotBanner />
             <p
               role="note"
               className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground"

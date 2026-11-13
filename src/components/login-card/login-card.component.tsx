@@ -3,6 +3,7 @@ import { Button } from "~/components/button/button.component";
 import { postForJson, useAppSnapshot } from "~/lib/storage/storage.client";
 import { LOGIN_CARD } from "./login-card.config";
 import type { LoginCardProps } from "./login-card.types";
+import { useSnapshotViews } from "~/lib/items/snapshot-view.store";
 
 /** Local JSON import replaces every former Steam login entry point. */
 export function LoginCard({
@@ -43,11 +44,12 @@ export function LoginCard({
         if (Array.isArray(value)) pages.push(...value);
         else pages.push(value);
       }
-      await postForJson("/api/import", {
+      const imported = await postForJson<{ id: string }>("/api/import", {
         label,
         pages,
         ...(targetId ? { portfolioId: targetId } : {}),
       });
+      useSnapshotViews.getState().latest(imported.id);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
