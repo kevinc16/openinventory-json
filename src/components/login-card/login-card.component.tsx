@@ -60,7 +60,7 @@ export function LoginCard({
   return (
     <div className={framed ? LOGIN_CARD.frameClass : undefined}>
       <Heading id={headingId} className={LOGIN_CARD.headingClass}>
-        {target ? "Replace imported inventory" : "Import your CS2 inventory"}
+        {target ? "Import into existing inventory" : "Import your CS2 inventory"}
       </Heading>
       <p id={bodyId} className={LOGIN_CARD.bodyClass}>
         Choose Steam inventory JSON files. No Steam sign-in, cookies, or API key are needed. The
@@ -72,6 +72,7 @@ export function LoginCard({
           <input
             className={inputClass}
             value={label}
+            readOnly={!!target}
             onChange={(event) => setLabel(event.target.value)}
             required
             maxLength={64}
@@ -91,8 +92,9 @@ export function LoginCard({
           />
         </label>
         <p className="text-xs text-muted-foreground">
-          Use the same portfolio name to replace its latest item state. Use another name for another
-          inventory. Export age and account ownership cannot be verified.
+          {target
+            ? `This replaces the latest item list in “${target.displayName ?? label}” and preserves its saved history. It does not merge duplicate items or overwrite historical snapshots.`
+            : "Use a new portfolio name for another inventory, or the same name to replace its latest item state. Export age and account ownership cannot be verified."}
         </p>
         {error && (
           <p role="alert" className={LOGIN_CARD.errorClass}>
@@ -100,7 +102,7 @@ export function LoginCard({
           </p>
         )}
         <Button type="submit" variant="primary" disabled={busy}>
-          {busy ? "Importing…" : target ? "Replace inventory" : "Import inventory"}
+          {busy ? "Importing…" : target ? "Import into this inventory" : "Import inventory"}
         </Button>
       </form>
       <details className="mt-4 text-sm">

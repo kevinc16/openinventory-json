@@ -74,7 +74,7 @@ export function AccountRow({ account, onRemoved }: AccountRowProps) {
             onChange={(id) => void setLabel(id)}
           />
           <Button small onClick={() => openReauth(account.steamId)}>
-            Replace JSON
+            Import into this inventory
           </Button>
           <Button
             small

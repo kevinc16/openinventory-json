@@ -30,6 +30,7 @@ import { useItemViewMode } from "~/lib/items/view-mode.store";
 import { usePriceQuery } from "~/lib/settings/settings.store";
 import { formatInteger } from "~/utils/format";
 import { useInventoryPath } from "~/lib/items/snapshot-view.hooks";
+import { ImportInventoryActions } from "~/components/import-inventory-actions/import-inventory-actions.component";
 
 export const Route = createFileRoute("/items")({
   // `?q=` pre-fills the search, e.g. when a dashboard row links here.
@@ -206,6 +207,7 @@ function ItemsPage() {
         account={accountLabel}
       >
         <div className={ITEMS_PAGE.controlsClass}>
+          <ImportInventoryActions />
           {rows && data.status === "ready" && (
             <ExportItems items={rows} currency={data.data.currency} />
           )}

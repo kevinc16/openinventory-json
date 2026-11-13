@@ -20,6 +20,7 @@ import { useRestoreFocusOnRecovery } from "~/lib/storage/recovered-focus.hooks";
 import { useRemoteData, useStorageSnapshot } from "~/lib/storage/storage.client";
 import { STORAGE_API } from "~/lib/storage/storage.config";
 import { usePriceQuery, useSettings } from "~/lib/settings/settings.store";
+import { ImportInventoryActions } from "~/components/import-inventory-actions/import-inventory-actions.component";
 
 export const Route = createFileRoute("/")({ component: DashboardPage });
 
@@ -48,6 +49,7 @@ function DashboardPage() {
         account={accountLabel}
       >
         {snapshot.loadingUnits && <span className={PAGE_LAYOUT.note}>{copy.unitsLoading}…</span>}
+        <ImportInventoryActions />
         <Button
           small
           aria-label={COPY.refresh.ariaFor(refresh.scopeLabel)}
