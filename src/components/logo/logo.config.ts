@@ -1,5 +1,5 @@
 export const LOGO = {
-  name: "OpenInventory",
+  name: "OpenInventory JSON",
   /** The same path as public/logo.svg (the favicon), filled from the live theme instead of fixed green. */
   viewBox: "0 0 500 500",
   /** Filled with the theme's accent-on-background colour, so it keeps its contrast in every theme. */

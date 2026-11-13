@@ -13,8 +13,8 @@ export function PortfolioHero({ dashboard, currency }: PortfolioHeroProps) {
     { label: copy.inventory, value: formatMoney(totals.inventoryValue, currency) },
     {
       label: copy.storage,
-      value: formatMoney(totals.storageValue, currency),
-      detail: `${totals.unitsLoaded}/${totals.unitsTotal} units`,
+      value: "Unavailable",
+      detail: "Not included in standard exports",
     },
     { label: copy.items, value: formatInteger(totals.itemCount) },
   ];

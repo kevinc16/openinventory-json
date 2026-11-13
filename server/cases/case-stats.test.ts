@@ -32,7 +32,7 @@ const events: HistoryEvent[] = [
   opening(4, "AK-47 | Redline", "eb4b4b", Date.UTC(2026, 2, 4)),
   opening(3, "★ Karambit | Fade", "eb4b4b", Date.UTC(2026, 1, 3)),
   opening(2, "M4A4 | Howl", "d32ce6", Date.UTC(2026, 1, 2)),
-  opening(1, "P250 | Sand Dune", "4b69ff", Date.UTC(2026, 0, 1)),
+  opening(1, "P250 | Sand Dune", "4b69ff", new Date(2026, 0, 1).getTime()),
 ];
 
 test("counts openings, rarity and gold", () => {

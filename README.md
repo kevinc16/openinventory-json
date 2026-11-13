@@ -1,3 +1,40 @@
+# OpenInventory JSON (local fork)
+
+A JSON-only fork of [OpenInventory](https://github.com/8liam/OpenInventory), based on commit 1e3f48d992c0865ffc526a303ea2cb2ed063c5af. Keeps its dashboard, item table, portfolio selector and marketplace pricing. Steam sign-in, Game Coordinator connections, transfers, renames and Terminal actions are unavailable. Upstream license and attribution are retained; this project remains noncommercial.
+
+## Run locally
+
+Node 24+ and pnpm are required:
+
+```sh
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm exec tsc -b
+pnpm exec vp build
+pnpm api
+```
+
+Open http://127.0.0.1:4174. The server automatically serves the built `dist` directory. Data defaults to `~/.openinventory-json`. For development use `pnpm dev` in another terminal. Docker builds the UI automatically: `docker compose up --build -d`, then open http://127.0.0.1:3000. The checked-in port mapping is loopback-only; use a strong `OPENINVENTORY_PASSWORD` for shared access.
+
+## Import inventory
+
+Choose a portfolio name and one or more raw Steam app 730 inventory JSON response files. A file containing an ordered array of pages also works. Filenames sort numerically. Complete context 2 and context 16 exports are supported. To export, open `https://steamcommunity.com/inventory/YOUR_STEAMID/730/2?l=english&count=2000` in your own browser signed into Steam and save the response. If `more_items` is 1, append `&start_assetid=LAST_ASSETID` and save each next page until `more_items` is 0.
+
+Use the same portfolio name to replace its latest inventory, or a different name for another one. Replacing from an existing portfolio dialog keeps that portfolio's identity. Counts, pagination, duplicate assets, descriptions, game/context and quantities are validated before existing data is replaced. Limits: 100 pages, 20 MiB combined request, 20,000 item units. Arrays with large quantities expand to individual item units to preserve the upstream dashboard's counting model.
+
+Only normalized item fields are stored in the local SQLite cache, under `~/.openinventory-json` by default (or the dedicated Docker volume). Raw imports, cookies and Steam session files are not saved or read. Portfolio IDs are local synthetic identifiers, not verified SteamIDs. Items persist after restarts. Prices come from public CSGOTrader marketplace feeds and may differ from Steam lowest asks; currency and marketplace remain configurable. Unpriced items are shown without a price and excluded from totals. Incomplete price coverage is excluded from value-history recording.
+
+Standard exports do not prove ownership or export age and generally omit storage-unit contents, exact floats, paint seeds and some attachment metadata. The UI must not invent these values. Import a fresh export after holdings change; price refresh does not update quantities. Background history records observed values only. This is not a historical holdings reconstruction.
+
+Do not upload cookies, HAR archives or copied cURL commands. Existing Steam account session folders are not migrated. Upstream desktop auto-updates are disabled to prevent this fork reverting to the login-based app.
+
+## Validation
+
+`pnpm exec tsc -b`, `pnpm test`, and `pnpm exec vp build`.
+
+---
+
+## Upstream documentation (historical; live Steam features below do not apply to this fork)
+
 <p align="center">
   <img src="public/logo.svg" alt="OpenInventory logo" width="120" height="120" />
 </p>

@@ -18,6 +18,13 @@ export function collectItems(
   const priceOf = (hash: string | null): number | null =>
     hash ? (book.byName.get(hash)?.price ?? null) : null;
 
+  if (gateway.getImportedItems) {
+    return gateway.getImportedItems().map((item) => ({
+      skin: null,
+      view: { ...item, price: priceOf(item.marketHashName), note: notes.get(item.id) ?? null },
+    }));
+  }
+
   const toCollected = (raw: GcItem, locationId: string, locationName: string): CollectedItem => {
     const { view, skin } = catalog.describe(raw);
     return {

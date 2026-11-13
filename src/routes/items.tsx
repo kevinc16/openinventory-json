@@ -178,7 +178,7 @@ function ItemsPage() {
     () => (rows ?? []).filter((i) => selected.has(itemRowKey(i))),
     [rows, selected],
   );
-  const visibleSelected = useMemo(() => new Set(selectedItems.map(itemRowKey)), [selectedItems]);
+  // Row selection is disabled for imported inventory.
   const filtered =
     deferred.trim() !== "" ||
     accountFilter !== ALL_FILTER ||
@@ -300,8 +300,8 @@ function ItemsPage() {
             items={rows}
             currency={data.data.currency}
             accountNames={accountNames}
-            selected={visibleSelected}
-            onSelectionChange={setSelected}
+            selected={undefined}
+            onSelectionChange={undefined}
           />
         )
       )}

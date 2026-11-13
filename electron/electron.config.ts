@@ -1,4 +1,4 @@
-export const APP_NAME = "OpenInventory";
+export const APP_NAME = "OpenInventory JSON";
 
 export const SERVER_HOST = "127.0.0.1";
 

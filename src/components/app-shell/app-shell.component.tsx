@@ -61,21 +61,23 @@ export function AppShell() {
             <Logo />
           </div>
           <nav className="flex flex-1 flex-col gap-2 px-2">
-            {NAV_ITEMS.map(({ to, key, icon }) => {
-              const Icon = ICONS[icon];
-              return (
-                <Link
-                  key={to}
-                  to={to}
-                  preload="intent"
-                  activeOptions={{ exact: to === "/" }}
-                  className="flex h-8 items-center gap-2.5 rounded-md px-2.5 text-muted-foreground transition-none data-[status=active]:transition-colors data-[status=active]:duration-200 data-[status=active]:ease-out not-data-[status=active]:hover:bg-muted not-data-[status=active]:hover:text-foreground data-[status=active]:bg-accent data-[status=active]:text-accent-foreground"
-                >
-                  <Icon size={15} strokeWidth={1.75} />
-                  {COPY.nav[key]}
-                </Link>
-              );
-            })}
+            {NAV_ITEMS.filter((item) => ["/", "/items", "/settings"].includes(item.to)).map(
+              ({ to, key, icon }) => {
+                const Icon = ICONS[icon];
+                return (
+                  <Link
+                    key={to}
+                    to={to}
+                    preload="intent"
+                    activeOptions={{ exact: to === "/" }}
+                    className="flex h-8 items-center gap-2.5 rounded-md px-2.5 text-muted-foreground transition-none data-[status=active]:transition-colors data-[status=active]:duration-200 data-[status=active]:ease-out not-data-[status=active]:hover:bg-muted not-data-[status=active]:hover:text-foreground data-[status=active]:bg-accent data-[status=active]:text-accent-foreground"
+                  >
+                    <Icon size={15} strokeWidth={1.75} />
+                    {COPY.nav[key]}
+                  </Link>
+                );
+              },
+            )}
           </nav>
           <AccountSwitcher className="border-t px-3 py-3" />
         </aside>
@@ -90,9 +92,25 @@ export function AppShell() {
           <main id={APP_SHELL.mainId} tabIndex={-1} className={APP_SHELL.mainClass}>
             <LoginOutcome />
             <StaleBanner />
+            <p
+              role="note"
+              className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground"
+            >
+              Imported inventory. No Steam connection. Export age and ownership are unverified.
+              Prices refresh separately; totals exclude unavailable prices. Exact floats, paint
+              seeds and storage-unit contents are unavailable in standard exports.
+            </p>
             <SyncError />
             <AccountGate pathname={pathname}>
-              <Outlet />
+              {["/", "/items", "/settings"].includes(pathname) ? (
+                <Outlet />
+              ) : (
+                <p>
+                  Storage-unit contents, case history, Terminals and trade-up data require
+                  information absent from standard JSON exports. This fork does not connect to
+                  Steam.
+                </p>
+              )}
             </AccountGate>
           </main>
           <TransferStatus />
@@ -102,22 +120,24 @@ export function AppShell() {
           className="flex shrink-0 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
           aria-label="Primary"
         >
-          {NAV_ITEMS.map(({ to, key, icon }) => {
-            const Icon = ICONS[icon];
-            return (
-              <Link
-                key={to}
-                to={to}
-                preload="intent"
-                activeOptions={{ exact: to === "/" }}
-                className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] text-muted-foreground max-[360px]:tracking-tight"
-                activeProps={{ className: "text-foreground" }}
-              >
-                <Icon size={18} strokeWidth={1.75} />
-                {COPY.nav[key]}
-              </Link>
-            );
-          })}
+          {NAV_ITEMS.filter((item) => ["/", "/items", "/settings"].includes(item.to)).map(
+            ({ to, key, icon }) => {
+              const Icon = ICONS[icon];
+              return (
+                <Link
+                  key={to}
+                  to={to}
+                  preload="intent"
+                  activeOptions={{ exact: to === "/" }}
+                  className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] text-muted-foreground max-[360px]:tracking-tight"
+                  activeProps={{ className: "text-foreground" }}
+                >
+                  <Icon size={18} strokeWidth={1.75} />
+                  {COPY.nav[key]}
+                </Link>
+              );
+            },
+          )}
         </nav>
       </div>
     </AuthGate>

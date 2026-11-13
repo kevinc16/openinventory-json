@@ -1,9 +1,10 @@
 import { homedir } from "node:os";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 const DEFAULT_PORT = 4174;
 const DEFAULT_HOST = "127.0.0.1";
-const DEFAULT_DATA_DIR = join(homedir(), ".openinventory");
+const DEFAULT_DATA_DIR = join(homedir(), ".openinventory-json");
 const ALLOWED_HOSTS_SEPARATOR = ",";
 /** A `:port` written on an allowed-host entry; the guard compares hostnames only. */
 const PORT_SUFFIX = /:\d+$/;
@@ -39,7 +40,11 @@ export function readSettings(env: NodeJS.ProcessEnv = process.env): ServerSettin
     port,
     dataDir: env[ENV.dataDir] ?? DEFAULT_DATA_DIR,
     password: env[ENV.password] || undefined,
-    webDir: env[ENV.webDir] || undefined,
+    webDir:
+      env[ENV.webDir] ||
+      (existsSync(join(import.meta.dirname, "../dist/index.html"))
+        ? join(import.meta.dirname, "../dist")
+        : undefined),
     allowedHosts: (env[ENV.allowedHosts] ?? "")
       .split(ALLOWED_HOSTS_SEPARATOR)
       .map((entry) => entry.trim().toLowerCase().replace(PORT_SUFFIX, ""))

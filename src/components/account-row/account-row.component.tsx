@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAddAccountDialog } from "~/lib/accounts/add-account-dialog.store";
 import { AccountActions } from "~/components/account-actions/account-actions.component";
 import { AccountStatusDot } from "~/components/account-status-dot/account-status-dot.component";
 import { Button } from "~/components/button/button.component";
@@ -22,6 +23,7 @@ function toLabel(id: string): AccountLabel | null {
 /** One tracked account in settings: its status, how to fix it, its label, and removing it. */
 export function AccountRow({ account, onRemoved }: AccountRowProps) {
   const copy = COPY.accounts;
+  const openReauth = useAddAccountDialog((state) => state.openReauth);
   const [removing, setRemoving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
@@ -50,7 +52,12 @@ export function AccountRow({ account, onRemoved }: AccountRowProps) {
         <div className={ACCOUNT_ROW.identityClass}>
           <AccountStatusDot status={auth.status} decorative />
           <AccountName name={accountName(account)} />
-          <span className={ACCOUNT_ROW.statusClass}>{authStatusText(auth.status)}</span>
+          <span className={ACCOUNT_ROW.statusClass}>
+            {authStatusText(auth.status)}
+            {account.snapshot.importedAt
+              ? ` · ${new Date(account.snapshot.importedAt).toLocaleString()}`
+              : ""}
+          </span>
         </div>
         <div className={ACCOUNT_ROW.controlsClass} aria-busy={saving}>
           <span role="status" className={ACCOUNT_ROW.savingClass}>
@@ -66,6 +73,9 @@ export function AccountRow({ account, onRemoved }: AccountRowProps) {
             ]}
             onChange={(id) => void setLabel(id)}
           />
+          <Button small onClick={() => openReauth(account.steamId)}>
+            Replace JSON
+          </Button>
           <Button
             small
             variant="destructiveOutline"

@@ -81,6 +81,7 @@ export type SetItemNoteRequest = AccountScoped & {
 
 /** Light-weight state pushed over SSE; item lists are fetched on demand. */
 export type StorageSnapshot = {
+  readonly importedAt?: number;
   readonly auth: AuthState;
   readonly units: readonly StorageUnit[];
   /** True while storage units are being (re)loaded from the Game Coordinator. */

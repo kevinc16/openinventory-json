@@ -72,6 +72,7 @@ export function AddAccountDialog() {
       <div className={ADD_ACCOUNT_DIALOG.bodyClass}>
         <LoginCard
           login={login}
+          targetId={target ?? undefined}
           framed={false}
           headingId={headingId}
           bodyId={bodyId}

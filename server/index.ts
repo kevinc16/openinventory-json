@@ -57,10 +57,7 @@ import {
   TEXT_PLAIN,
 } from "./server.config.ts";
 import type { SnapshotTimers } from "./server.types.ts";
-import { bootstrapAccounts } from "./accounts/accounts.bootstrap.ts";
-import { createAccountManager } from "./accounts/account-manager.ts";
-import { createSessionStore } from "./steam/session-store.ts";
-import { createRealGateway } from "./steam/steam.real.ts";
+import { createImportManager } from "./imports/manager.ts";
 import { UserFacingError, type StorageGateway } from "./steam/steam.types.ts";
 import { computeTradeUp, listTradeUpCandidates, type TradeUpCandidate } from "./tradeup.ts";
 import { findTradeUps } from "./tradeup-finder.ts";
@@ -87,7 +84,7 @@ const VARY_HEADER = "accept-encoding";
 // eslint-disable-next-line no-control-regex -- rejecting control characters is the point
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 /** Notes attach to real assets only, never to the "inventory" pseudo-location. */
-const NOTE_ITEM_ID_PATTERN = /^\d{1,20}$/;
+const NOTE_ITEM_ID_PATTERN = /^[\d:]{1,50}$/;
 /** Control characters except tab, newline and carriage return, which a note may hold. */
 // eslint-disable-next-line no-control-regex -- rejecting control characters is the point
 const NOTE_CONTROL_CHARACTERS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
@@ -97,15 +94,7 @@ const TRACKED_SCOPES_KEY = "pref:price-scopes";
 const settings = readSettings();
 const db = openDatabase(settings.dataDir);
 const catalog = await loadCatalog(db);
-const sessions = createSessionStore(settings.dataDir);
-const saved = bootstrapAccounts(db, sessions);
-const accounts = createAccountManager({
-  db,
-  sessions,
-  saved,
-  createGateway: (session) =>
-    createRealGateway(db, sessions, (raw) => catalog.describe(raw).view.name, session),
-});
+const accounts = createImportManager(db);
 const historySync = createHistorySync(db, (steamId, refresh) =>
   accounts.get(steamId).getWebCookies(refresh),
 );
@@ -172,7 +161,7 @@ async function readBody(req: IncomingMessage): Promise<unknown> {
   let size = 0;
   for await (const chunk of req) {
     size += (chunk as Buffer).length;
-    if (size > STORAGE_LIMITS.maxRequestBytes)
+    if (size > (req.url === "/api/import" ? 20 * 1024 * 1024 : STORAGE_LIMITS.maxRequestBytes))
       throw new UserFacingError("Request too large", HTTP.badRequest);
     chunks.push(chunk as Buffer);
   }
@@ -400,7 +389,8 @@ async function writeSnapshot(
   const items = collectItems(gateway, catalog, book, db.loadItemNotes(key.steamId)).map(
     (c) => c.view,
   );
-  if (items.length === 0) return;
+  if (items.some((item) => item.marketHashName !== null && item.price === null)) return;
+  if (items.length === 0 && !gateway.getImportedItems) return;
   const { inventoryValue, storageValue, totalValue } = summarizeValue(items);
   db.addSnapshot(key, {
     takenAt: Date.now(),
@@ -475,9 +465,14 @@ async function serveStatic(webDir: string, pathname: string, res: ServerResponse
 const server = createServer(async (req, res) => {
   // Set before any branch so every response (health, auth challenge, SSE, static, errors) carries them.
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) res.setHeader(name, value);
-  const url = new URL(req.url ?? "/", `http://${settings.host}`);
   const method = req.method ?? "GET";
   try {
+    let url: URL;
+    try {
+      url = new URL(req.url ?? "/", `http://${settings.host}`);
+    } catch {
+      throw new UserFacingError("Invalid request URL", HTTP.badRequest);
+    }
     if (url.pathname === HEALTH_PATH) return void res.writeHead(HTTP.ok).end("ok");
     // A password already stops rebinding (the attacker's origin has no credentials).
     if (!settings.password && !isAllowedHost(req.headers.host, settings.allowedHosts)) {
@@ -492,6 +487,20 @@ const server = createServer(async (req, res) => {
       return void res.end();
     }
     const path = url.pathname;
+    if (
+      [
+        STORAGE_API.cases,
+        STORAGE_API.casesSync,
+        STORAGE_API.tradeUp,
+        STORAGE_API.tradeUpOdds,
+        STORAGE_API.tradeUpFinder,
+      ].some((route) => path === route)
+    ) {
+      throw new UserFacingError(
+        "This information requires data not present in a standard inventory export.",
+        409,
+      );
+    }
     if (path === STORAGE_API.events && method === "GET") return handleEvents(req, res);
     if (path === STORAGE_API.state && method === "GET")
       return sendJson(res, HTTP.ok, accounts.getSnapshot());
@@ -603,6 +612,18 @@ const server = createServer(async (req, res) => {
       assertSameOrigin(req);
       assertJsonBody(req);
       const body = await readBody(req);
+      if (path === "/api/import") return sendJson(res, HTTP.ok, accounts.importInventory(body));
+      const allowed = [
+        STORAGE_API.accountRemove,
+        STORAGE_API.accountLabel,
+        STORAGE_API.itemNote,
+        STORAGE_API.refresh,
+      ];
+      if (!allowed.some((route) => path === route))
+        throw new UserFacingError(
+          "Steam actions are disabled in this JSON-only app. Import an updated export instead.",
+          409,
+        );
       if (path === STORAGE_API.accountLogin) {
         await accounts.startLogin();
         return void res.writeHead(HTTP.noContent).end();

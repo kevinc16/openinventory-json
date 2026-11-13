@@ -11,7 +11,7 @@ import {
 import { isAppUrl, isSafeExternalUrl } from "./navigation.ts";
 import type { RunningServer } from "./electron.types.ts";
 import { startServer } from "./server-process.ts";
-import { initAutoUpdate } from "./updater.ts";
+// Upstream auto-updates are disabled for this JSON-only fork.
 
 let server: RunningServer | undefined;
 let mainWindow: BrowserWindow | undefined;
@@ -78,6 +78,6 @@ if (!app.requestSingleInstanceLock()) {
       return;
     }
     openWindow(server.url);
-    initAutoUpdate();
+    // Updates must preserve the JSON-only fork.
   });
 }

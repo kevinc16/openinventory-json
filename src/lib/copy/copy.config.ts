@@ -3,7 +3,7 @@ import { formatCount } from "../../utils/plural.ts";
 import { OPENING_NOUN } from "./copy-nouns.config.ts";
 
 export const COPY = {
-  brand: { name: "OpenInventory", tagline: "Self-hosted CS2 inventory and storage unit tracker" },
+  brand: { name: "OpenInventory JSON", tagline: "Local CS2 inventory imports" },
   common: {
     loading: "Loading…",
     empty: "—",
@@ -12,13 +12,12 @@ export const COPY = {
     searchPlaceholder: "Search items",
   },
   signIn: {
-    title: "Connect your Steam account",
-    body: "Scan the code with the Steam mobile app. OpenInventory opens a CS2 session to read your inventory and storage units. It never lists or trades anything, and only moves items, renames storage units or activates a Terminal when you ask it to.",
-    button: "Show QR code",
+    title: "Import your CS2 inventory",
+    body: "Import raw Steam inventory JSON. This fork never signs in to Steam or changes your inventory.",
+    button: "Import inventory",
     waiting: "Waiting for approval in the Steam app…",
     qrLabel: "Steam sign-in QR code. Scan it with the Steam mobile app.",
-    footnote:
-      "If CS2 is running on another device, OpenInventory waits until it closes. Launching CS2 later asks Steam to end OpenInventory's session.",
+    footnote: "This app never signs in to Steam. Import fresh files after your holdings change.",
   },
   nav: {
     dashboard: "Dashboard",
@@ -79,58 +78,58 @@ export const COPY = {
     working: "Activating…",
   },
   highlight: { play: "Play highlight", close: "Close", unsupported: "This video can't be played." },
-  account: { signOut: "Sign out", fallbackName: "Steam account" },
+  account: { signOut: "Remove portfolio", fallbackName: "Steam account" },
   accounts: {
     /** The name shown until Steam reports one. */
     fallbackName: "Steam account",
     allSummary: (count: number, attention: number) =>
       attention === 0
-        ? `${count} accounts · All connected`
+        ? `${count} portfolios · Imported`
         : `${count} accounts · ${attention} ${attention === 1 ? "needs" : "need"} attention`,
     optionHint: (label: string | undefined, status: string) =>
       label ? `${label} · ${status}` : status,
-    switcherLabel: "Account",
-    all: "All accounts",
-    add: "Add account",
-    addTitle: "Add a Steam account",
+    switcherLabel: "Portfolio",
+    all: "All portfolios",
+    add: "Import inventory",
+    addTitle: "Import an inventory",
     addBody:
-      "Scan the code with the Steam mobile app on the account you want to add. Each account keeps its own login and its own connection.",
-    reauthTitle: (name: string) => `Sign in to ${name} again`,
+      "Select raw Steam inventory JSON response files. Each portfolio keeps its own imported items.",
+    reauthTitle: (name: string) => `Replace imported inventory for ${name}`,
     reauthBody: (name: string) =>
       `Scan the code with the Steam mobile app signed in to ${name}. Its saved login is replaced; its label and history stay.`,
     outcome: {
       added: (name: string) => `Added ${name}.`,
-      reconnected: (name: string) => `Signed in to ${name} again.`,
+      reconnected: (name: string) => `Updated imported inventory for ${name}.`,
       otherAccount: (name: string, target: string) =>
         `Signed in as ${name}, not ${target}. Sign in again from ${target}'s Steam app to reconnect it.`,
       switchTo: (name: string) => `View ${name}`,
       dismiss: "Dismiss",
     },
-    tryAgain: "Show a new QR code",
+    tryAgain: "Try import again",
     unlabelled: "No label",
     labels: { main: "Main", trade: "Trade", alt: "Alt" } as const,
-    settingsTitle: "Steam accounts",
+    settingsTitle: "Imported portfolios",
     settingsBody:
-      "Every account signs in on its own and connects to CS2 only when you use it. Labels are for filtering.",
+      "Each named portfolio is a saved JSON import. No Steam login is stored. Labels are for filtering.",
     labelAria: (name: string) => `Label for ${name}`,
     remove: "Remove",
     removeAria: (name: string) => `Remove ${name}`,
     labelSaving: "Saving…",
     removeTitle: (name: string) => `Remove ${name}?`,
-    removeWarning: "This signs the account out of OpenInventory.",
+    removeWarning: "This removes the imported portfolio from this app.",
     removeEffects: [
-      "Its saved Steam login and cached storage unit contents are deleted from this server.",
-      "Its value and case history stay in the database and come back if you add the account again.",
+      "Its latest imported item state is removed from this server.",
+      "Its value history stays in the database and returns if you import the same portfolio name again.",
       "Nothing changes in Steam or in the game.",
     ],
-    removeCheckbox: "I understand this account will be signed out",
+    removeCheckbox: "I understand this imported portfolio will be removed",
     removeConfirm: "Remove account",
     removeWorking: "Removing…",
     cancel: "Cancel",
     reconnect: "Reconnect",
     reconnecting: "Reconnecting…",
     status: {
-      ready: "Connected",
+      ready: "Imported",
       idle: "Not connected yet",
       connecting: "Connecting",
       error: "Needs attention",
@@ -139,7 +138,7 @@ export const COPY = {
     } as const,
     notReadyTitle: (name: string) => `${name} isn't connected`,
     connecting: "Connecting to Steam…",
-    signInAgain: "Sign in again",
+    signInAgain: "Replace JSON",
     chooseOneTitle: "Choose an account",
     /** Why the page needs one account, by route; read-only pages say so instead of warning about moves. */
     chooseOneBody: {
@@ -393,14 +392,14 @@ export const COPY = {
       lisskins: "LIS-SKINS",
     },
     accounts: {
-      title: "Steam accounts",
+      title: "Imported portfolios",
     },
     data: {
       title: "Data",
-      refreshTitle: "Refresh prices and units",
+      refreshTitle: "Refresh prices",
       refreshBody:
-        "OpenInventory caches item data, prices, storage unit contents and value history in a local SQLite database.",
-      refreshData: "Refresh prices and units",
+        "Refresh public market prices. Your imported item quantities change only when you import a new export.",
+      refreshData: "Refresh prices",
       resetTitle: "Preferences",
       reset: "Reset preferences",
       resetBody: "Puts every setting on this page back to its default.",

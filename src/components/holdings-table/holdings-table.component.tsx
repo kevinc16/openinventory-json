@@ -33,11 +33,15 @@ export function HoldingsTable({ holdings, currency }: HoldingsTableProps) {
               </div>
               <div className="flex gap-1">
                 <dt className="text-muted-foreground">{columns.unit}</dt>
-                <dd className="tabular">{formatMoney(holding.unitPrice, currency)}</dd>
+                <dd className="tabular">
+                  {holding.unitPrice > 0 ? formatMoney(holding.unitPrice, currency) : "—"}
+                </dd>
               </div>
               <div className="flex w-full justify-end gap-1 text-sm">
                 <dt className="text-muted-foreground">{columns.total}</dt>
-                <dd className="tabular font-medium">{formatMoney(holding.totalValue, currency)}</dd>
+                <dd className="tabular font-medium">
+                  {holding.totalValue > 0 ? formatMoney(holding.totalValue, currency) : "—"}
+                </dd>
               </div>
             </dl>
           </li>
@@ -74,10 +78,10 @@ export function HoldingsTable({ holdings, currency }: HoldingsTableProps) {
                 {formatInteger(holding.count)}
               </td>
               <td className="tabular py-2 text-right text-muted-foreground">
-                {formatMoney(holding.unitPrice, currency)}
+                {holding.unitPrice > 0 ? formatMoney(holding.unitPrice, currency) : "—"}
               </td>
               <td className="tabular py-2 text-right">
-                {formatMoney(holding.totalValue, currency)}
+                {holding.totalValue > 0 ? formatMoney(holding.totalValue, currency) : "—"}
               </td>
             </tr>
           ))}

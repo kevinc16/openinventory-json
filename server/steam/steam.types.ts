@@ -13,6 +13,7 @@ export type UnitContents = {
 };
 
 export type StorageGateway = {
+  readonly getImportedItems?: () => readonly import("../../src/lib/items/item.types.ts").ItemView[];
   readonly getSnapshot: () => StorageSnapshot;
   readonly subscribe: (listener: SnapshotListener) => () => void;
   /** Bumps this account's snapshot revision, so pages refetch data that changed outside Steam (e.g. notes). */
